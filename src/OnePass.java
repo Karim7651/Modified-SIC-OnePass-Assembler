@@ -22,6 +22,7 @@ public class OnePass {
     HashSet <String> allInstructionsSet = new HashSet<>();
 
     public OnePass(){
+        initializeMaps();
         countNumberOfLines();
         prepareArrayLists();
         readFromFile();
@@ -40,17 +41,25 @@ public class OnePass {
     public void readFromFile(){
         try (BufferedReader br = new BufferedReader(new FileReader(inputFile))) {
             String line;
+            int currentIndex = 0;
 
             while ((line = br.readLine()) != null) {
                 // Split the line into words
                 String[] words = line.split("\\s+");
+                if(words.length ==3){
+                        label.set(currentIndex,words[0]);
+                        instruction.set(currentIndex,words[1]);
+                        reference.set(currentIndex,words[2]);
 
-                // Process each word
-                for (String word : words) {
-                    // Your processing logic for each word goes here
-                    System.out.print(word + " ");
                 }
-                System.out.println();
+                if(words.length ==2){
+                    instruction.set(currentIndex,words[0]);
+                    reference.set(currentIndex,words[1]);
+                }
+                if(words.length ==1){
+                    instruction.set(currentIndex,words[0]);
+                }
+                currentIndex++;
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -141,5 +150,11 @@ public class OnePass {
         allInstructionsSet.add("NORM");
         allInstructionsSet.add("SIO");
         allInstructionsSet.add("TIO");
+    }
+
+    public void printArrayLists(){
+        System.out.println(label);
+        System.out.println(instruction);
+        System.out.println(reference);
     }
 }
