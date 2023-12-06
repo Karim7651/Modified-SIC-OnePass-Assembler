@@ -23,8 +23,38 @@ public class OnePass {
 
     public OnePass(){
         countNumberOfLines();
+        prepareArrayLists();
+        readFromFile();
     }
+
+    public void prepareArrayLists() {
+        for(int i = 0 ; i < numberOfLines ; i++){
+            locationCounter.add("");
+            label.add("");
+            instruction.add("");
+            reference.add("");
+            objectCode.add("");
+        }
+    }
+
     public void readFromFile(){
+        try (BufferedReader br = new BufferedReader(new FileReader(inputFile))) {
+            String line;
+
+            while ((line = br.readLine()) != null) {
+                // Split the line into words
+                String[] words = line.split("\\s+");
+
+                // Process each word
+                for (String word : words) {
+                    // Your processing logic for each word goes here
+                    System.out.print(word + " ");
+                }
+                System.out.println();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
     }
     public void countNumberOfLines(){
