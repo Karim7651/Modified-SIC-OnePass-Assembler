@@ -1,12 +1,17 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 
 public class OnePass {
     public String inputFile = "src\\input.txt";
+    public String symbolTableFile ="src\\symbolTable.txt";
+    public String output = "src\\output.txt";
+    public String hte = "src\\hte.txt";
     ArrayList<String> input = new ArrayList<>();
 
     ArrayList<String> locationCounter = new ArrayList<>();
@@ -14,6 +19,8 @@ public class OnePass {
     ArrayList<String> instruction = new ArrayList<>();
     ArrayList<String> reference = new ArrayList<>();
     ArrayList<String> objectCode = new ArrayList<>();
+
+    ArrayList<ArrayList<String>> tRecords = new ArrayList<>();
 
     int numberOfLines;
     String currentLocationCounter;
@@ -24,12 +31,62 @@ public class OnePass {
     HashMap<Character, String> asciiHexMap = new HashMap<>();
     HashSet<String> allInstructionsSet = new HashSet<>();
 
+    //variable addresses
+    HashMap<String, String> references = new HashMap<>(); //<Name,Address>
+
     public OnePass() {
         initializeMaps();
         countNumberOfLines();
         prepareArrayLists();
         readFromFile();
         calculateLocationCounterAndObjectCodeForVariables();
+        calculateLocationCounterAndObjectCodeForInstructions();
+
+        generateSymbolTable();
+
+    }
+
+    public void generateSymbolTable(){
+        try (FileWriter writer = new FileWriter(symbolTableFile)) {
+            for(int i = 1 ; i < label.size()-1 ; i++){
+                String symbol = label.get(i);
+                String address = locationCounter.get(i);
+                if(!symbol.equals("")){
+                    writer.write(symbol + "\t");
+                    writer.write(address);
+                    writer.write("\n");
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("problem writing symbolTable");
+        }
+
+    }
+
+    public void calculateLocationCounterAndObjectCodeForInstructions() {
+        int currentInstructionIndex = instructionsIndexStart;
+        for (int i = instructionsIndexStart; i < instruction.size() - 1; i++) {
+            String currentInstruction = instruction.get(i);
+            boolean isInstructionOne = instructionFormatOneOPCodeMap.containsKey(currentInstruction);
+            //format one handling
+            if(isInstructionOne){
+                objectCode.set(i,instructionFormatOneOPCodeMap.get(currentInstruction));
+            }else{
+                //handle things that could include forward referencing
+                if(currentInstruction.equals("J") || currentInstruction.equals("JEQ") || currentInstruction.equals("JGT") || currentInstruction.equals("JLT") || currentInstruction.equals("JSUB")){
+
+                  //comma x
+//                }else if(){
+//                //immediate
+//                }else if(){
+//
+//                }else{
+//
+                }
+            }
+
+        }
+
     }
 
     public void calculateLocationCounterAndObjectCodeForVariables() {
@@ -43,14 +100,16 @@ public class OnePass {
                 currentLocationCounter = addTwoHexadecimal(currentLocationCounter, "3");
                 locationCounter.set(i + 1, currentLocationCounter);
                 objectCode.set(i, makeObjectCodeSixHexadecimal(decimalToHexadecimal(Integer.parseInt(reference.get(i)))));
+                references.put(label.get(i),currentLocationCounter);
             } else if (instruction.get(i).equals("BYTE")) {
                 String byteValue = reference.get(i);
                 byteValue = cutFirstTwoCharacters(byteValue);
                 byteValue = removeLastCharacter(byteValue);
-                int valueToAdd = byteValue.length() ;
+                int valueToAdd = byteValue.length();
                 currentLocationCounter = addTwoHexadecimal(currentLocationCounter, decimalToHexadecimal(valueToAdd));
                 locationCounter.set(i + 1, currentLocationCounter);
-                objectCode.set(i,getByteObjectCode(byteValue));
+                objectCode.set(i, getByteObjectCode(byteValue));
+                references.put(label.get(i),currentLocationCounter);
 
 
             } else if (instruction.get(i).equals("RESW")) {
@@ -58,6 +117,7 @@ public class OnePass {
                 value = multiplyTwoHexadecimal(value, "3");
                 currentLocationCounter = addTwoHexadecimal(currentLocationCounter, value);
                 locationCounter.set(i + 1, currentLocationCounter);
+                references.put(label.get(i),currentLocationCounter);
 
 
             } else if (instruction.get(i).equals("RESB")) {
@@ -65,10 +125,10 @@ public class OnePass {
                 String valueToAdd = decimalToHexadecimal(Integer.parseInt(value));
                 currentLocationCounter = addTwoHexadecimal(currentLocationCounter, valueToAdd);
                 locationCounter.set(i + 1, currentLocationCounter);
+                references.put(label.get(i),currentLocationCounter);
             }
             instructionsIndexStart++;
         }
-        System.out.println(instructionsIndexStart);
     }
 
     public void prepareArrayLists() {
@@ -116,12 +176,10 @@ public class OnePass {
             String line;
 
             while ((line = br.readLine()) != null) {
-                // Increment the counter for each line
                 lineCount++;
             }
             numberOfLines = lineCount;
 
-            System.out.println("Number of lines in the file: " + lineCount);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -239,6 +297,75 @@ public class OnePass {
 
         return stringBuilder.toString();
     }
+    public String hexadecimalToBinary(String input) {
+        HashMap<Character, String> map = new HashMap<>();
+        map.put('0', "0000");
+        map.put('1', "0001");
+        map.put('2', "0010");
+        map.put('3', "0011");
+        map.put('4', "0100");
+        map.put('5', "0101");
+        map.put('6', "0110");
+        map.put('7', "0111");
+        map.put('8', "1000");
+        map.put('9', "1001");
+        map.put('A', "1010");
+        map.put('B', "1011");
+        map.put('C', "1100");
+        map.put('D', "1101");
+        map.put('E', "1110");
+        map.put('F', "1111");
+        map.put('a', "1010");
+        map.put('b', "1011");
+        map.put('c', "1100");
+        map.put('d', "1101");
+        map.put('e', "1110");
+        map.put('f', "1111");
+        StringBuilder stringbuilder = new StringBuilder();
+        for (int i = 0; i < input.length(); i++) {
+            char current = input.charAt(i);
+            String value = map.get(current);
+            stringbuilder.append(value);
+        }
+        return stringbuilder.toString();
+    }
+
+    public String binaryToHexadecimal(String input) {
+        StringBuilder stringbuilder = new StringBuilder();
+        if (input.length() % 4 == 3) {
+            stringbuilder.append("0");
+        } else if (input.length() % 4 == 2) {
+            stringbuilder.append("00");
+        } else if (input.length() % 4 == 1) {
+            stringbuilder.append("000");
+        }
+        stringbuilder.append(input);
+        String inputToProcess = stringbuilder.toString();
+        StringBuilder output = new StringBuilder();
+        HashMap<String, Character> map = new HashMap<>();
+        map.put("0000", '0');
+        map.put("0001", '1');
+        map.put("0010", '2');
+        map.put("0011", '3');
+        map.put("0100", '4');
+        map.put("0101", '5');
+        map.put("0110", '6');
+        map.put("0111", '7');
+        map.put("1000", '8');
+        map.put("1001", '9');
+        map.put("1010", 'A');
+        map.put("1011", 'B');
+        map.put("1100", 'C');
+        map.put("1101", 'D');
+        map.put("1110", 'E');
+        map.put("1111", 'F');
+        for (int i = 0; i < inputToProcess.length(); i += 4) {
+            String current = inputToProcess.substring(i, i + 4);//exclusive for the second parameter
+            char part = map.get(current);
+            output.append(part);
+        }
+        return output.toString();
+    }
 
     public int hexadecimalToDecimal(String input) {
         HashMap<String, Integer> map = new HashMap<>();
@@ -292,6 +419,26 @@ public class OnePass {
         return resultHex;
     }
 
+    public String makeObjectCodeFourHexadecimal(String inputHex) {
+        if (inputHex == null || inputHex.isEmpty()) {
+            throw new IllegalArgumentException("Input hexadecimal value cannot be null or empty");
+        }
+        int hexLength = inputHex.length();
+
+        // Append zeros on the left to make it exactly 4 hex characters
+        if (hexLength < 4) {
+            int zerosToAppend = 4 - hexLength;
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < zerosToAppend; i++) {
+                sb.append("0");
+            }
+            sb.append(inputHex);
+            return sb.toString().toUpperCase();
+        } else {
+            return inputHex.toUpperCase();
+        }
+    }
+
     public String makeObjectCodeSixHexadecimal(String input) {
         if (input.length() >= 6) {
             return input.toUpperCase();
@@ -320,7 +467,7 @@ public class OnePass {
         return stringBuilder.toString();
     }
 
-    public  String removeLastCharacter(String str) {
+    public String removeLastCharacter(String str) {
         if (str != null && str.length() > 0) {
             return str.substring(0, str.length() - 1);
         } else {
@@ -328,5 +475,54 @@ public class OnePass {
         }
     }
 
+    public static String removeLastTwoCharacters(String str) {
+        if (str == null || str.length() < 2) {
+            throw new IllegalArgumentException("Input string must have at least two characters");
+        }
+        return str.substring(0, str.length() - 2);
+    }
+
+    public boolean isImmediateInstruction(String reference) {
+        return reference.contains("#");
+    }
+
+    public String getImmediateInstructionOPCode(String opCode) {
+        opCode = addTwoHexadecimal(opCode, "1");
+        opCode = opCode.substring(2).toUpperCase();
+        return opCode;
+    }
+
+    //send full immediate value including #
+    public String getImmediateObjectCode(String opCode, String immediateValue) {
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(getImmediateInstructionOPCode(opCode));
+        //op code ready
+        //append immediate value to it (decimal to hexadecimal then append)
+        immediateValue = immediateValue.substring(1);
+        int decimalValue = Integer.parseInt(immediateValue);
+        immediateValue = decimalToHexadecimal(decimalValue);
+        immediateValue = makeObjectCodeFourHexadecimal(immediateValue);
+        stringBuilder.append(immediateValue);
+        return stringBuilder.toString();
+    }
+
+    public boolean isCommaXInstruction(String reference) {
+        return reference.contains(",X");
+    }
+
+    //send full reference including ",X"
+    public String getCommaXObjectCode(String OPCode, String reference) {
+        StringBuilder stringBuilder = new StringBuilder();
+        StringBuilder stringBuilder1 = new StringBuilder();
+        reference = removeLastTwoCharacters(reference);
+        String address = references.get(reference);
+        String binary = hexadecimalToBinary(address);
+        stringBuilder.append(1);
+        stringBuilder.append(binary.substring(1));
+        address = binaryToHexadecimal(stringBuilder.toString());
+        stringBuilder1.append(OPCode);
+        stringBuilder1.append(address);
+        return stringBuilder1.toString();
+    }
 
 }
