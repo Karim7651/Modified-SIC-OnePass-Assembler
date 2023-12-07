@@ -9,7 +9,7 @@ import java.util.Map;
 
 public class OnePass {
     public String inputFile = "src\\input.txt";
-    public String symbolTableFile ="src\\symbolTable.txt";
+    public String symbolTableFile = "src\\symbolTable.txt";
     public String output = "src\\output.txt";
     public String hte = "src\\hte.txt";
     ArrayList<String> input = new ArrayList<>();
@@ -33,6 +33,8 @@ public class OnePass {
 
     //variable addresses
     HashMap<String, String> references = new HashMap<>(); //<Name,Address>
+    //<labelName,lastReferenceToIt>
+
 
     public OnePass() {
         initializeMaps();
@@ -46,12 +48,12 @@ public class OnePass {
 
     }
 
-    public void generateSymbolTable(){
+    public void generateSymbolTable() {
         try (FileWriter writer = new FileWriter(symbolTableFile)) {
-            for(int i = 1 ; i < label.size()-1 ; i++){
+            for (int i = 1; i < label.size() - 1; i++) {
                 String symbol = label.get(i);
                 String address = locationCounter.get(i);
-                if(!symbol.equals("")){
+                if (!symbol.equals("")) {
                     writer.write(symbol + "\t");
                     writer.write(address);
                     writer.write("\n");
@@ -69,55 +71,54 @@ public class OnePass {
             String currentInstruction = instruction.get(i);
             boolean isInstructionOne = instructionFormatOneOPCodeMap.containsKey(currentInstruction);
             //format one handling
-            if(isInstructionOne){
-                objectCode.set(i,instructionFormatOneOPCodeMap.get(currentInstruction));
-                currentLocationCounter = addTwoHexadecimal(currentLocationCounter,"1");
-                locationCounter.set(i+1,currentLocationCounter);
-            }else{
+            if (isInstructionOne) {
+                objectCode.set(i, instructionFormatOneOPCodeMap.get(currentInstruction));
+                currentLocationCounter = addTwoHexadecimal(currentLocationCounter, "1");
+                locationCounter.set(i + 1, currentLocationCounter);
+            } else {
                 //handle things that could include forward referencing
-                if(currentInstruction.equals("J") || currentInstruction.equals("JEQ") || currentInstruction.equals("JGT") || currentInstruction.equals("JLT") || currentInstruction.equals("JSUB")){
+                if (currentInstruction.equals("J") || currentInstruction.equals("JEQ") || currentInstruction.equals("JGT") || currentInstruction.equals("JLT") || currentInstruction.equals("JSUB")) {
                     String ref = reference.get(i);
-                    String address ;
-                    currentLocationCounter = addTwoHexadecimal(currentLocationCounter,"3");
-                    locationCounter.set(i+1,currentLocationCounter);
-                    if(references.containsKey(ref)){
+                    String address;
+                    currentLocationCounter = addTwoHexadecimal(currentLocationCounter, "3");
+                    locationCounter.set(i + 1, currentLocationCounter);
+                    if (references.containsKey(ref)) {
                         address = references.get(ref);
-                    }else{
+                    } else {
                         address = "0000";
                         //check j
-                        references.put(label.get(i),locationCounter.get(i));
-                        System.out.println(label.get(i));
-                        System.out.println(locationCounter.get(i));
+                        references.put(label.get(i), locationCounter.get(i));
+                        ForwardReference forwardReference = new ForwardReference(reference.get(i),subtractTwoHexadecimal(currentLocationCounter,"2"));
                     }
                     StringBuilder stringBuilder = new StringBuilder(instructionFormatThreeOPCodeMap.get(currentInstruction));
                     stringBuilder.append(address);
-                    objectCode.set(i,stringBuilder.toString());
-                  //comma x
-                }else if(isImmediateInstruction(reference.get(i))){
-                    currentLocationCounter = addTwoHexadecimal(currentLocationCounter,"3");
-                    locationCounter.set(i+1,currentLocationCounter);
-                    String OPCode = getImmediateObjectCode(instructionFormatThreeOPCodeMap.get(currentInstruction),reference.get(i));
-                    objectCode.set(i,OPCode);
-                //immediate
-                }else if(isCommaXInstruction(reference.get(i))){
-                    currentLocationCounter = addTwoHexadecimal(currentLocationCounter,"3");
-                    locationCounter.set(i+1,currentLocationCounter);
-                    String OPCode = getCommaXObjectCode(instructionFormatThreeOPCodeMap.get(currentInstruction),reference.get(i));
-                    objectCode.set(i,OPCode);
-                //normal instructions
-                }else{
-                    currentLocationCounter = addTwoHexadecimal(currentLocationCounter,"3");
-                    locationCounter.set(i+1,currentLocationCounter);
+                    objectCode.set(i, stringBuilder.toString());
+                    //comma x
+                } else if (isImmediateInstruction(reference.get(i))) {
+                    currentLocationCounter = addTwoHexadecimal(currentLocationCounter, "3");
+                    locationCounter.set(i + 1, currentLocationCounter);
+                    String OPCode = getImmediateObjectCode(instructionFormatThreeOPCodeMap.get(currentInstruction), reference.get(i));
+                    objectCode.set(i, OPCode);
+                    //immediate
+                } else if (isCommaXInstruction(reference.get(i))) {
+                    currentLocationCounter = addTwoHexadecimal(currentLocationCounter, "3");
+                    locationCounter.set(i + 1, currentLocationCounter);
+                    String OPCode = getCommaXObjectCode(instructionFormatThreeOPCodeMap.get(currentInstruction), reference.get(i));
+                    objectCode.set(i, OPCode);
+                    //normal instructions
+                } else {
+                    currentLocationCounter = addTwoHexadecimal(currentLocationCounter, "3");
+                    locationCounter.set(i + 1, currentLocationCounter);
                     String ref = reference.get(i);
                     String address = references.get(ref);
                     String OPCode = instructionFormatThreeOPCodeMap.get(currentInstruction);
                     StringBuilder stringBuilder = new StringBuilder(OPCode);
-                    if(currentInstruction.equals("RSUB")){
-                        address="0000";
+                    if (currentInstruction.equals("RSUB")) {
+                        address = "0000";
                     }
                     stringBuilder.append(address);
-                    objectCode.set(i,stringBuilder.toString());
-                    references.put(reference.get(i),address);
+                    objectCode.set(i, stringBuilder.toString());
+                    references.put(reference.get(i), address);
                 }
             }
 
@@ -133,7 +134,7 @@ public class OnePass {
         locationCounter.set(1, currentLocationCounter);
         for (int i = 1; i <= lastIndex; i++) {
             if (instruction.get(i).equals("WORD")) {
-                references.put(label.get(i),currentLocationCounter);
+                references.put(label.get(i), currentLocationCounter);
                 currentLocationCounter = addTwoHexadecimal(currentLocationCounter, "3");
                 locationCounter.set(i + 1, currentLocationCounter);
                 objectCode.set(i, makeObjectCodeSixHexadecimal(decimalToHexadecimal(Integer.parseInt(reference.get(i)))));
@@ -143,26 +144,24 @@ public class OnePass {
                 byteValue = cutFirstTwoCharacters(byteValue);
                 byteValue = removeLastCharacter(byteValue);
                 int valueToAdd = byteValue.length();
-                references.put(label.get(i),currentLocationCounter);
+                references.put(label.get(i), currentLocationCounter);
                 currentLocationCounter = addTwoHexadecimal(currentLocationCounter, decimalToHexadecimal(valueToAdd));
                 locationCounter.set(i + 1, currentLocationCounter);
                 objectCode.set(i, getByteObjectCode(byteValue));
 
 
-
             } else if (instruction.get(i).equals("RESW")) {
                 String value = reference.get(i);
                 value = multiplyTwoHexadecimal(value, "3");
-                references.put(label.get(i),currentLocationCounter);
+                references.put(label.get(i), currentLocationCounter);
                 currentLocationCounter = addTwoHexadecimal(currentLocationCounter, value);
                 locationCounter.set(i + 1, currentLocationCounter);
-
 
 
             } else if (instruction.get(i).equals("RESB")) {
                 String value = reference.get(i);
                 String valueToAdd = decimalToHexadecimal(Integer.parseInt(value));
-                references.put(label.get(i),currentLocationCounter);
+                references.put(label.get(i), currentLocationCounter);
                 currentLocationCounter = addTwoHexadecimal(currentLocationCounter, valueToAdd);
                 locationCounter.set(i + 1, currentLocationCounter);
 
@@ -337,6 +336,7 @@ public class OnePass {
 
         return stringBuilder.toString();
     }
+
     public String hexadecimalToBinary(String input) {
         HashMap<Character, String> map = new HashMap<>();
         map.put('0', "0000");
@@ -439,6 +439,24 @@ public class OnePass {
 
     public String decimalToHexadecimal(int input) {
         return Integer.toHexString(input);
+    }
+    public String subtractTwoHexadecimal(String input1, String input2) {
+        int decimal1 = hexadecimalToDecimal(input1);
+        int decimal2 = hexadecimalToDecimal(input2);
+        int sum = decimal1 - decimal2;
+        String sumString = decimalToHexadecimal(sum);
+        StringBuilder stringBuilder = new StringBuilder();
+        //make it 4 characters
+        if (sumString.length() % 4 == 1) {
+            stringBuilder.append("000");
+        } else if (sumString.length() == 2) {
+            stringBuilder.append("00");
+        } else if (sumString.length() == 3) {
+            stringBuilder.append("0");
+        }
+        stringBuilder.append(sumString);
+
+        return stringBuilder.toString();
     }
 
     public String cutFirstTwoCharacters(String input) {
@@ -566,7 +584,7 @@ public class OnePass {
     }
 
     //for jump instructions with forward referencing
-    public String getObjectCodeAndAppendZeros(String OPCode){
+    public String getObjectCodeAndAppendZeros(String OPCode) {
         StringBuilder stringBuilder = new StringBuilder(OPCode);
         stringBuilder.append("0000");
         return stringBuilder.toString();
