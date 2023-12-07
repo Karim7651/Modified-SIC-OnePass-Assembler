@@ -1,7 +1,4 @@
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -20,7 +17,10 @@ public class OnePass {
     ArrayList<String> reference = new ArrayList<>();
     ArrayList<String> objectCode = new ArrayList<>();
 
+    ArrayList<String> hRecord = new ArrayList<>();
     ArrayList<ArrayList<String>> tRecords = new ArrayList<>();
+    ArrayList<String> eRecord = new ArrayList<>();
+
 
     int numberOfLines;
     String currentLocationCounter;
@@ -43,8 +43,58 @@ public class OnePass {
         readFromFile();
         calculateLocationCounterAndObjectCodeForVariables();
         calculateLocationCounterAndObjectCodeForInstructions();
-
+        generateHRecord();
+        generateTRecord();
+        generateERecord();
+        generateOutput();
         generateSymbolTable();
+        generateHTERecord();
+
+    }
+
+    public void generateHTERecord() {
+    }
+
+    public void generateTRecord() {
+
+    }
+
+    public void generateERecord() {
+        String E = "E";
+        String start = locationCounter.get(0);
+        eRecord.add(E);
+        eRecord.add(start);
+    }
+
+    public void generateHRecord() {
+        String H = "H";
+        String start = locationCounter.get(0);
+        String end = locationCounter.get(locationCounter.size()-1);
+        String length = subtractTwoHexadecimal(end,start);
+        String programName = label.get(0);
+        hRecord.add(H);
+        hRecord.add(appendXToProgramName(programName));
+        hRecord.add(start);
+        hRecord.add(length);
+        System.out.println(hRecord);
+    }
+
+    public void generateOutput(){
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(output))) {
+            // Assuming all lists have the same size
+            int size = locationCounter.size();
+
+            for (int i = 0; i < size; i++) {
+                // Write each element from different lists on the same line separated by tabs
+                writer.write(locationCounter.get(i) + "\t" + label.get(i) + "\t" +
+                        instruction.get(i) + "\t" + reference.get(i) + "\t" + objectCode.get(i));
+                writer.newLine(); // Move to the next line
+            }
+
+            System.out.println("Output successful");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
     }
 
@@ -138,6 +188,7 @@ public class OnePass {
                 currentLocationCounter = addTwoHexadecimal(currentLocationCounter, "3");
                 locationCounter.set(i + 1, currentLocationCounter);
                 objectCode.set(i, makeObjectCodeSixHexadecimal(decimalToHexadecimal(Integer.parseInt(reference.get(i)))));
+                //t record
 
             } else if (instruction.get(i).equals("BYTE")) {
                 String byteValue = reference.get(i);
@@ -148,6 +199,7 @@ public class OnePass {
                 currentLocationCounter = addTwoHexadecimal(currentLocationCounter, decimalToHexadecimal(valueToAdd));
                 locationCounter.set(i + 1, currentLocationCounter);
                 objectCode.set(i, getByteObjectCode(byteValue));
+                //t record
 
 
             } else if (instruction.get(i).equals("RESW")) {
@@ -168,6 +220,20 @@ public class OnePass {
             }
             instructionsIndexStart++;
         }
+        int counter = 0;
+        ArrayList<String> tRecord = makeNewTRecord();
+        for(int i = 1 ; i <= lastIndex ; i++){
+            if(instruction.get(i).equals("RESW") || instruction.get(i).equals("RESB")){
+                continue;
+            }
+            // word, byte
+            tRecord.add(objectCode.get(i));
+            counter++;
+        }
+        tRecord.set(1,locationCounter.get(0));
+        tRecord.set(2,makeLengthTwoBits(multiplyTwoHexadecimal(decimalToHexadecimal(counter),"3")));
+        tRecord.set(3,"000");
+        tRecords.add(tRecord);
     }
 
     public void prepareArrayLists() {
@@ -316,6 +382,12 @@ public class OnePass {
         System.out.println(instruction);
         System.out.println(reference);
         System.out.println(objectCode);
+        System.out.println(hRecord);
+        for(int i = 0 ; i < tRecords.size() ; i++){
+            ArrayList <String> current = tRecords.get(i);
+            System.out.println(current);
+        }
+        System.out.println(eRecord);
     }
 
     public String addTwoHexadecimal(String input1, String input2) {
@@ -590,4 +662,43 @@ public class OnePass {
         return stringBuilder.toString();
     }
 
+    public  String appendXToProgramName(String input) {
+        int targetLength = 6;
+        if (input.length() < targetLength) {
+            int numOfXToAppend = targetLength - input.length();
+            StringBuilder result = new StringBuilder(input);
+            for (int i = 0; i < numOfXToAppend; i++) {
+                result.append('X');
+            }
+            return result.toString();
+        } else {
+            return input;
+        }
+    }
+
+    public ArrayList<String> makeNewTRecord(){
+        ArrayList<String> tRecord = new ArrayList<>();
+        tRecord.add("T");
+        tRecord.add("");//empty for now for  (start)
+        tRecord.add("");//empty for now for length
+        tRecord.add("");//empty for now for masking bits
+        return tRecord;
+    }
+    public String makeLengthTwoBits(String input) {
+        if (input.length() >= 2) {
+            return input;
+        }
+        StringBuilder result = new StringBuilder(input);
+        while (result.length() < 2) {
+            result.insert(0, '0');
+        }
+
+        return result.toString();
+    }
+    public  String convertBinaryBitsToMaskingBits(String input) {
+        while (input.length() < 12) {
+            input = input + "0";
+        }
+        return binaryToHexadecimal(input);
+    }
 }
