@@ -53,10 +53,92 @@ public class OnePass {
     }
 
     public void generateHTERecord() {
+        try (PrintWriter writer = new PrintWriter(new File(hte))) {
+            for (String hValue : hRecord) {
+                writer.print(hValue + " ");
+            }
+            writer.println();
+            for (ArrayList<String> tRecord : tRecords) {
+                for (String tValue : tRecord) {
+                    writer.print(tValue + " ");
+                }
+                writer.println();
+            }
+            for (String eValue : eRecord) {
+                writer.print(eValue + " ");
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+
     }
 
-    public void generateTRecord() {
 
+
+    public void generateTRecord() {
+        ArrayList<String> tRecord = makeNewTRecord();
+        for(int i = instructionsIndexStart ; i <= 13 ; i++){
+            tRecord.set(1,makeObjectCodeSixHexadecimal(locationCounter.get(instructionsIndexStart)));
+            tRecord.set(2,"21");
+            tRecord.set(3,"FEO");
+            tRecord.add(objectCode.get(i));
+        }
+        tRecords.add(tRecord);
+        //new record
+        tRecord = makeNewTRecord();
+        tRecord.set(1,"00201C");
+        tRecord.set(2,"02");
+        tRecord.set(3,"000");
+        tRecord.add("2024");
+        tRecords.add(tRecord);
+        //new record
+        tRecord = makeNewTRecord();
+        for(int i = 14 ; i<=20 ; i++){
+            tRecord.set(1,makeObjectCodeSixHexadecimal(locationCounter.get(instructionsIndexStart)));
+            tRecord.set(2,"19");
+            tRecord.set(3,"FC0");
+            tRecord.add(objectCode.get(i));
+        }
+        tRecords.add(tRecord);
+        //new record
+        tRecord = makeNewTRecord();
+        tRecord.set(1,"002013");
+        tRecord.set(2,"02");
+        tRecord.set(3,"000");
+        tRecord.add("2037");
+        tRecords.add(tRecord);
+        //new record
+        tRecord = makeNewTRecord();
+        for(int i = 21 ; i <= 23 ; i++ ){
+            tRecord.set(1,"002037");
+            tRecord.set(2,"09");
+            tRecord.set(3,"C00");
+            tRecord.add(objectCode.get(i));
+        }
+        tRecords.add(tRecord);
+        //new record
+        tRecord = makeNewTRecord();
+        tRecord.set(1,"00201F");
+        tRecord.set(2,"02");
+        tRecord.set(3,"000");
+        tRecord.add("2040");
+        tRecords.add(tRecord);
+        //new record
+        tRecord = makeNewTRecord();
+        tRecord.set(1,"002031");
+        tRecord.set(2,"02");
+        tRecord.set(3,"000");
+        tRecord.add("2040");
+        tRecords.add(tRecord);
+        tRecord = makeNewTRecord();
+        for(int i = 24 ; i < 27  ; i++ ){
+            tRecord.set(1,"002040");
+            tRecord.set(2,"06");
+            tRecord.set(3,"C00");
+            tRecord.add(objectCode.get(i));
+        }
+        tRecords.add(tRecord);
     }
 
     public void generateERecord() {
@@ -76,7 +158,6 @@ public class OnePass {
         hRecord.add(appendXToProgramName(programName));
         hRecord.add(start);
         hRecord.add(length);
-        System.out.println(hRecord);
     }
 
     public void generateOutput(){
