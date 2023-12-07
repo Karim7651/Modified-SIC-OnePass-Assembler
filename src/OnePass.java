@@ -71,17 +71,53 @@ public class OnePass {
             //format one handling
             if(isInstructionOne){
                 objectCode.set(i,instructionFormatOneOPCodeMap.get(currentInstruction));
+                currentLocationCounter = addTwoHexadecimal(currentLocationCounter,"1");
+                locationCounter.set(i+1,currentLocationCounter);
             }else{
                 //handle things that could include forward referencing
                 if(currentInstruction.equals("J") || currentInstruction.equals("JEQ") || currentInstruction.equals("JGT") || currentInstruction.equals("JLT") || currentInstruction.equals("JSUB")){
-
+                    String ref = reference.get(i);
+                    String address ;
+                    currentLocationCounter = addTwoHexadecimal(currentLocationCounter,"3");
+                    locationCounter.set(i+1,currentLocationCounter);
+                    if(references.containsKey(ref)){
+                        address = references.get(ref);
+                    }else{
+                        address = "0000";
+                        //check j
+                        references.put(label.get(i),locationCounter.get(i));
+                        System.out.println(label.get(i));
+                        System.out.println(locationCounter.get(i));
+                    }
+                    StringBuilder stringBuilder = new StringBuilder(instructionFormatThreeOPCodeMap.get(currentInstruction));
+                    stringBuilder.append(address);
+                    objectCode.set(i,stringBuilder.toString());
                   //comma x
-//                }else if(){
-//                //immediate
-//                }else if(){
-//
-//                }else{
-//
+                }else if(isImmediateInstruction(reference.get(i))){
+                    currentLocationCounter = addTwoHexadecimal(currentLocationCounter,"3");
+                    locationCounter.set(i+1,currentLocationCounter);
+                    String OPCode = getImmediateObjectCode(instructionFormatThreeOPCodeMap.get(currentInstruction),reference.get(i));
+                    objectCode.set(i,OPCode);
+                //immediate
+                }else if(isCommaXInstruction(reference.get(i))){
+                    currentLocationCounter = addTwoHexadecimal(currentLocationCounter,"3");
+                    locationCounter.set(i+1,currentLocationCounter);
+                    String OPCode = getCommaXObjectCode(instructionFormatThreeOPCodeMap.get(currentInstruction),reference.get(i));
+                    objectCode.set(i,OPCode);
+                //normal instructions
+                }else{
+                    currentLocationCounter = addTwoHexadecimal(currentLocationCounter,"3");
+                    locationCounter.set(i+1,currentLocationCounter);
+                    String ref = reference.get(i);
+                    String address = references.get(ref);
+                    String OPCode = instructionFormatThreeOPCodeMap.get(currentInstruction);
+                    StringBuilder stringBuilder = new StringBuilder(OPCode);
+                    if(currentInstruction.equals("RSUB")){
+                        address="0000";
+                    }
+                    stringBuilder.append(address);
+                    objectCode.set(i,stringBuilder.toString());
+                    references.put(reference.get(i),address);
                 }
             }
 
@@ -97,35 +133,39 @@ public class OnePass {
         locationCounter.set(1, currentLocationCounter);
         for (int i = 1; i <= lastIndex; i++) {
             if (instruction.get(i).equals("WORD")) {
+                references.put(label.get(i),currentLocationCounter);
                 currentLocationCounter = addTwoHexadecimal(currentLocationCounter, "3");
                 locationCounter.set(i + 1, currentLocationCounter);
                 objectCode.set(i, makeObjectCodeSixHexadecimal(decimalToHexadecimal(Integer.parseInt(reference.get(i)))));
-                references.put(label.get(i),currentLocationCounter);
+
             } else if (instruction.get(i).equals("BYTE")) {
                 String byteValue = reference.get(i);
                 byteValue = cutFirstTwoCharacters(byteValue);
                 byteValue = removeLastCharacter(byteValue);
                 int valueToAdd = byteValue.length();
+                references.put(label.get(i),currentLocationCounter);
                 currentLocationCounter = addTwoHexadecimal(currentLocationCounter, decimalToHexadecimal(valueToAdd));
                 locationCounter.set(i + 1, currentLocationCounter);
                 objectCode.set(i, getByteObjectCode(byteValue));
-                references.put(label.get(i),currentLocationCounter);
+
 
 
             } else if (instruction.get(i).equals("RESW")) {
                 String value = reference.get(i);
                 value = multiplyTwoHexadecimal(value, "3");
+                references.put(label.get(i),currentLocationCounter);
                 currentLocationCounter = addTwoHexadecimal(currentLocationCounter, value);
                 locationCounter.set(i + 1, currentLocationCounter);
-                references.put(label.get(i),currentLocationCounter);
+
 
 
             } else if (instruction.get(i).equals("RESB")) {
                 String value = reference.get(i);
                 String valueToAdd = decimalToHexadecimal(Integer.parseInt(value));
+                references.put(label.get(i),currentLocationCounter);
                 currentLocationCounter = addTwoHexadecimal(currentLocationCounter, valueToAdd);
                 locationCounter.set(i + 1, currentLocationCounter);
-                references.put(label.get(i),currentLocationCounter);
+
             }
             instructionsIndexStart++;
         }
@@ -523,6 +563,13 @@ public class OnePass {
         stringBuilder1.append(OPCode);
         stringBuilder1.append(address);
         return stringBuilder1.toString();
+    }
+
+    //for jump instructions with forward referencing
+    public String getObjectCodeAndAppendZeros(String OPCode){
+        StringBuilder stringBuilder = new StringBuilder(OPCode);
+        stringBuilder.append("0000");
+        return stringBuilder.toString();
     }
 
 }
